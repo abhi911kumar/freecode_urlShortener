@@ -21,16 +21,16 @@ var port = process.env.PORT || 3000;
 
 mongoose.connect("mongodb://localhost:27017/urlShortningDB", {
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
 });
 
 var short_url_schema = new mongoose.Schema({
     original_url: {
-        type: String
+        type: String,
     },
     short_url: {
-        type: String
-    }
+        type: String,
+    },
 });
 
 var short_url_model = mongoose.model("short_url", short_url_schema);
@@ -47,30 +47,36 @@ app.use(express.json());
 app.post("/api/shorturl/new", async(req, res) => {
     if (validator.isURL(req.body.url)) {
         try {
-            var ID = function() {
-                // Math.random should be unique because of its seeding algorithm.
-                // Convert it to base 36 (numbers + letters), and grab the first 9 characters
-                // after the decimal.
-                return (
-                    "_" +
-                    Math.random()
-                    .toString(36)
-                    .substr(2, 9)
-                );
-            };
-            const new_short_url = await ID();
-
-            // a document instance
-            const newShorteningUrl = new short_url_model({
+            const req_short_url = await short_url_model.findOne({
                 original_url: req.body.url,
-                short_url: new_short_url
             });
 
-            // save model to database
-            await newShorteningUrl.save(function(err) {
-                if (err) return res.json({ error: err });
-                res.json({ original_url: req.body.url, short_url: new_short_url });
-            });
+            if (req_short_url) {
+                res.json({
+                    original_url: req.body.url,
+                    short_url: req_short_url.short_url,
+                });
+            } else {
+                var ID = function() {
+                    // Math.random should be unique because of its seeding algorithm.
+                    // Convert it to base 36 (numbers + letters), and grab the first 9 characters
+                    // after the decimal.
+                    return "_" + Math.random().toString(36).substr(2, 9);
+                };
+                const new_short_url = await ID();
+
+                // a document instance
+                const newShorteningUrl = new short_url_model({
+                    original_url: req.body.url,
+                    short_url: new_short_url,
+                });
+
+                // save model to database
+                await newShorteningUrl.save(function(err) {
+                    if (err) return res.json({ error: err });
+                    res.json({ original_url: req.body.url, short_url: new_short_url });
+                });
+            }
         } catch (err) {
             console.log(err);
         }
